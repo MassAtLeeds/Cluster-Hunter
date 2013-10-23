@@ -24,7 +24,7 @@ import org.json.JSONException;
  * This option requires that a search term to identify events to be searched for clusters is also 
  * passed in through the "SearchTerm" parameter.  If the "SearchTerm" is not set the "JSONFile" parameter
  * will be ignored.  If this option is used it will override any parameter passed in for "File".</li>
- * <li>"SearchTerm" is a text phrase to be searched in the JSON file.</li>
+ * <li>"SearchTerm" is a series of comma delimited text phrases to be searched for in the JSON file.</li>
  * <li>"CoordinateType" as the key and a valid integer constant from the list below
  * <ul>
  * <li>1 WGS84 Latitude and Longitude (the default setting)</li>
@@ -64,7 +64,7 @@ public class Parameters {
     File csv = null;
     File outputDIR = null;
     File json = null;
-    String searchTerm = "";
+    String[] searchTerm = null;
     
     //input parameters for the search algorithm
     private double radMax = 5000.0;
@@ -113,7 +113,7 @@ public class Parameters {
         
         //check and see if we have a JSON file and search term
         boolean useJSON = false;
-        if (pars.getJSONFile()!=null && !pars.getSearchTerm().isEmpty()){
+        if (pars.getJSONFile()!=null && pars.getSearchTerm()!=null){
             pars.setCSV( new FormatJSONFile().createCSV() );
             useJSON = true;
         }
@@ -195,7 +195,17 @@ public class Parameters {
                 }
                 
                 //set the search term
-                else if ( valKey[0].equalsIgnoreCase(Parameters.SEARCH_TERM) ){ searchTerm = valKey[1]; }
+                else if ( valKey[0].equalsIgnoreCase(Parameters.SEARCH_TERM) ){ 
+                    String[] terms = valKey[1].split(",");
+                    if (terms.length>0){
+                        searchTerm = new String[terms.length];
+                        
+                        for (int j = 0; j < terms.length; j++) {
+                            searchTerm[j] = terms[j].trim();
+                        }
+                    }
+                     
+                }
                 
                 //set the radius max
                 else if ( valKey[0].equalsIgnoreCase(Parameters.RADIUS_MAX) ){ radMax = new Double(valKey[1]).doubleValue(); }
@@ -250,7 +260,7 @@ public class Parameters {
     //Input JSON File
     public File getJSONFile(){return json;}
     //search term to be used
-    public String getSearchTerm(){return searchTerm;}
+    public String[] getSearchTerm(){return searchTerm;}
     
     //search algorithm parameters
     public double getRadiusMax(){return radMax;}

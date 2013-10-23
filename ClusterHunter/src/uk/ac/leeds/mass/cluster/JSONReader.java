@@ -60,7 +60,7 @@ public abstract class JSONReader{
                          
                             tweetText = o.get("text").toString();
                             
-                            isEvent =  tweetText.contains(Parameters.getCurrent().getSearchTerm());
+                            isEvent = testEventStatus();
                                     
                             doActionWithValidCoordinates(x.doubleValue(), y.doubleValue());
                             
@@ -89,6 +89,17 @@ public abstract class JSONReader{
             }
         }
     }
+    
+    
+    private boolean testEventStatus(){
+        for (int i = 0; i < Parameters.getCurrent().getSearchTerm().length; i++) {
+           if(tweetText.toUpperCase().contains(Parameters.getCurrent().getSearchTerm()[i].toUpperCase())){
+               return true;
+           }
+        }
+        return false;
+    }
+    
     
     protected abstract void doActionWithValidCoordinates(double x, double y);
     

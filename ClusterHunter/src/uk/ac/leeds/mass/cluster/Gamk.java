@@ -25,6 +25,8 @@ public class Gamk {
     private double radMax = Parameters.getCurrent().getRadiusMax();
     private double radInc = Parameters.getCurrent().getRadiusIncrement();
     private double overlp = Parameters.getCurrent().getRadiusOverlap();
+    
+    int id =1;
 
     private PoissonTest sigTest = null;
             
@@ -66,23 +68,10 @@ public class Gamk {
         //get the width
         width = geog.dist(xMax, yMin);
         
-    }   
-        
-    private double
-	rangeN, // Northing range
-	rangeE; // Easting range
-    private int
-	minPnt ,// Minimum point count
-	totCal,
-	totDat,
-	totNHy,
-	totNC2;
-    int id =1;
- 
-		
+    }           
+
+                
     public void gamAlgorithm(){
-        
-//        double minPnt = pars.getMinPointCount();
         
         // Find max and min x, y values to define search region
         setSearchBounds();
@@ -95,46 +84,21 @@ public class Gamk {
                 Parameters.getCurrent().getMinimumCaseCount(),
                 Parameters.getCurrent().getMultipleTestReRuns(),
                 Parameters.getCurrent().getSignificanceThreshold());
-
-//        rangeN = maxN - minN;
-//        rangeE = maxE - minE;
-//
-//
-//        // adjust region size for radius of max circle
-//        float yDiff = (float) (xMaxN + 2.0 * radMax + 1.0 - xMinN);
-//        float xDiff = (float)(xMaxE + 2.0 * radMax + 1.0 - xMinE);
-//        float range = Misc.max(nDiff, eDiff);
- 
-
-
-//    public void search(){
-        
-        totCal = totDat = totNC2 = totNHy = 0;
         
         //get the number of times the algorithm has to step through the different size circles
         int rTimes = (int) ((radMax-radMin)/radInc + 1.0);
         double radius = radMin - radInc;
-//        double width=rec.getWidth();
-//        double height=rec.getHeight();
-        
-//        double trad=radius;
-//        for (int i = 0;i<rTimes;i++){
-//            trad +=radInc;
-//            TotalCalc+=(int)((width/(trad*overlp))*(height/(trad*overlp)));
-//        }
+
         for (int loop=0; loop < rTimes; loop++){
             radius += radInc;
-//            MyInt nSigCircs = new MyInt();
-//            MyInt nHyps = new MyInt();
-            sequentialSearch(radius);//L,radius,nSigCircs, nHyps, 0,rec);
+            sequentialSearch(radius);
         }
 
     }
     
     int nCalc = 0;//,TotalCalc=0;
 
-    public void sequentialSearch(double radius){//Vector L, double radius, MyInt numCals, 
-				 //MyInt numHy, int sample,GeoRectangle rec){
+    public void sequentialSearch(double radius){
         
         //data to be searched
         double[][] searchData = data.getData();
@@ -144,16 +108,13 @@ public class Gamk {
 
         //get the increment required after each search
         double step = radius * overlp;
-//        double radSq = radius * radius;
+
         //get the number of searches on the y axis
         int yTimes = (int) (height/step + 1.0);
         //get the number of searches on the x axis
         int xTimes = (int) (width/step + 1.0);
         
-//        //X and Y for the search circle
-//        double cX = xMin;
-//        double cY = yMin;
-	
+        
 
         //make sure the Y coordinate is at the minimum of the search area
         geog.setY(yMin);
@@ -165,16 +126,15 @@ public class Gamk {
         double bbXmin = 0.0;
         double bbXmax = 0.0;
         
-    	// Grid search: northern loop
+        // Grid search: northern loop
         for (int iRow=0; iRow < yTimes; iRow++){
 
             geog.setX(xMin);
             bbXmin = geog.getOffsetXY(-(radius * 1.05 ), true);
             bbXmax = geog.getOffsetXY((radius * 1.05 ), true);
-	  
+          
             // grid search: easting loop
             for (int iCol = 0; iCol < xTimes; iCol++){
-//                if(cl!=null&&!pars.getAnimate()) cl.setPos(cX,cY);
 
                 nCalc++;
                 //get data for circle
@@ -194,36 +154,31 @@ public class Gamk {
                     }
                 }
                 
-                //no points found so go straight to the next circle
-                if(pointsInRadius==0) continue;
-                
-//                for(int i=0;i<l2;i++){
-//                    obsP += ((MyPoint)points.elementAt(i)).getPop();
-//                    obsC += ((MyPoint)points.elementAt(i)).getCases();
-//                }
+                //Point found so try testing
+                if(pointsInRadius > 0) {
 
-                if (obsC > 0){
-                    int j = 0;
+                    nDat++;
+
+                    if (sigTest.isWorthTesting(obsP, obsC)){
+                        nHy++;
+                        //debug.print(" tested, ");
+                        if (sigTest.isSignificant(obsP, obsC)){
+
+                            nCals ++;
+
+                            results.add(new SignificantCircle(geog.getX(),geog.getY(), radius, sigTest.getStat()));
+
+                        }// end if  significant
+
+                    }// end of if worth testing
+                    
                 }
-                
-                nDat++;
-                if (sigTest.isWorthTesting(obsP, obsC)){
-                    nHy++;
-                    //debug.print(" tested, ");
-                    if (sigTest.isSignificant(obsP, obsC)){
 
-                        nCals ++;
-
-                        results.add(new SignificantCircle(geog.getX(),geog.getY(), radius, sigTest.getStat()));
-                        
-                    }// end if  significant
-
-                }// end of if worth testing
-		
                 //increment the x coordinate for the search
                 geog.offsetXY(step, true);
                 bbXmin = geog.getOffsetXY(-(radius * 1.05 ), true);
                 bbXmax = geog.getOffsetXY((radius * 1.05 ), true);
+                
             }//end of x loop
             
             //increment the y coordinate for the search
@@ -234,16 +189,6 @@ public class Gamk {
         }// end of y loop
 
 
-        // form global stats
-        totCal += nCalc;
-        totDat += nDat;
-        totNHy += nHy;
-        totNC2 += nCals;
-
-//        numCals.x = nCals;
-//        numHy.x = nHy;
-//        if(cl!=null) cl.setPos(Integer.MAX_VALUE,Integer.MAX_VALUE);
-//        return;
     }
 
    

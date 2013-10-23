@@ -23,10 +23,18 @@ public class IdentifyRecordsFromClusters extends JSONReader{
     private ArrayList<SignificantCircle> results;
     
     private BufferedWriter bw = null;
+    private BufferedWriter bwTweets = null;
+    private BufferedWriter bwTweetsSummary = null;
     private boolean write = true;
+    private boolean firstLine = true;
+    
+    private JSONObject objTweets = new JSONObject();
+    private JSONObject objTweetsSummary = new JSONObject();
     
     public IdentifyRecordsFromClusters(File file, ArrayList<SignificantCircle> results) throws IOException, JSONException{
+        
         super(file);
+        
         this.results = results;
 
         File outputDirectory = Parameters.getCurrent().getOutputDirectory();
@@ -44,13 +52,35 @@ public class IdentifyRecordsFromClusters extends JSONReader{
 
         String outputName = "";
         if ( csv.endsWith(".csv") ){outputName = csv.substring(0, csv.length()-4);}
-        File output = new File(outputDirectory + System.getProperty("file.separator") + outputName + ".JSON");
+        File output = new File(outputDirectory + System.getProperty("file.separator") + outputName + ".json");
+        File tweets = new File(outputDirectory + System.getProperty("file.separator") + outputName + "_tweets.json");
+        File tweetsSummary = new File(outputDirectory + System.getProperty("file.separator") + outputName + "_tweets_summary.json");
 
+        if (tweetsSummary.exists()){tweetsSummary.delete();}
+        tweetsSummary.createNewFile();
+        bwTweetsSummary = new BufferedWriter(new FileWriter(tweetsSummary));
+        
+        if (tweets.exists()){tweets.delete();}
+        tweets.createNewFile();
+        bwTweets = new BufferedWriter(new FileWriter(tweets));
+        
         if (output.exists()){output.delete();}
         output.createNewFile();
         bw = new BufferedWriter(new FileWriter(output));
         
         super.readFile();
+        
+        JSONObject master = new JSONObject();
+        
+        //add the parameter values to the object.
+//        JSONArray searchTerms = new JSONArray();
+//        searchTerms.put(Parameters.getCurrent().getSearchTerm());
+        master.put(Parameters.SEARCH_TERM,Parameters.getCurrent().getSearchTerm());
+        master.put(Parameters.RADIUS_MIN,Parameters.getCurrent().getRadiusMin());
+        master.put(Parameters.RADIUS_MAX,Parameters.getCurrent().getRadiusMax());
+        master.put(Parameters.RADIUS_INCREMENT,Parameters.getCurrent().getRadiusIncrement());
+        master.put(Parameters.OVERLAP,Parameters.getCurrent().getRadiusOverlap());
+        master.put(Parameters.SIGNIFICANCE_THRESHOLD,Parameters.getCurrent().getSignificanceThreshold());
         
         JSONArray out = new JSONArray();
         //for each significant circle write out a JSON object to the output file
@@ -65,28 +95,41 @@ public class IdentifyRecordsFromClusters extends JSONReader{
             JSONArray a = new JSONArray();
             //create an array of points for all of the tweet IDs contributing to this circle
             for (Long long1 : points) {
-                a.put(long1.longValue());
+                a.put(long1.toString());
             }
             obj.put("points", a);
-//            obj.write(bw);
-//            try{bw.newLine();}catch(IOException e){
-                //swallow any exception here it isn't that important, at worst we will 
-                //not have a clean line break between two JSON objects, should still be 
-                //machine readable.
-//            }
+
             out.put(obj);
         }                
         
-        out.write(bw);
+        master.put("clusters", out);
+        master.write(bw);
         
         bw.flush();
         bw.close();
+        
+        //check and make sure we have written something to the file to be closed off...
+        if (!firstLine){
+            try {
+                bwTweetsSummary.append("]");
+                bwTweets.append("]");
+            } catch (IOException ex) {
+                Logger.log("Error wrtiing tweet " + tweetID, Logger.messageSeverity.Error, "IdentifyRecordsFromClusters");
+            }
+        }
+        
+        bwTweets.flush();
+        bwTweets.close();
+        
+        bwTweetsSummary.flush();
+        bwTweetsSummary.close();
         
     }
     
     @Override
     protected void doActionWithValidCoordinates(double x, double y) {
         
+        boolean firstAdd = true;
         
         geog.setX(x);
         geog.setY(y);
@@ -121,6 +164,55 @@ public class IdentifyRecordsFromClusters extends JSONReader{
                      if ( geog.dist(significantCircle.getX(), significantCircle.getY()) < radius ){
                         //add the tweet ID to the significant circle
                          significantCircle.addTweet(new Long(tweetID));
+                         
+                         //add the tweet to a subset output
+                         if ( firstAdd ){
+                             try {
+                                 //no longer the first time this tweet has been examined
+                                 //so don't add any duplicates
+                                 firstAdd =false;
+                                 
+                                 //create the output for the summary file
+                                 JSONObject tweetSummary = new JSONObject();
+                                 tweetSummary.put("text", tweetText);
+                                 
+                                 JSONArray coords = new JSONArray();
+                                 coords.put(0, y);
+                                 coords.put(1, x);
+                                 JSONObject geo = new JSONObject();
+                                 geo.put("coordinates", coords);
+                                 geo.put("type", "Point");
+                                 tweetSummary.put("geo", geo);
+                                 
+                                 tweetSummary.put("id",tweetID.toString());
+                                 
+                                 if (!firstLine){
+                                    bwTweetsSummary.append(",");
+                                    bwTweets.append(",");
+//                                     bwTweetsSummary.newLine();
+//                                     bwTweets.newLine();
+                                 }else{
+                                     bwTweetsSummary.append("[");
+                                     bwTweets.append("[");
+                                     firstLine = false;
+                                 }
+                                 
+//                                 tweetSummary.write(bwTweetsSummary);
+                                 bwTweetsSummary.write(tweetSummary.toString());
+                                 
+                                 //create the output all of the tweet information in
+                                 bwTweets.append(o.toString());
+//                                 o.write(bwTweets);
+                                 
+                             } catch (JSONException ex) {
+                                 Logger.log("Error wrtiing tweet " + tweetID, Logger.messageSeverity.Error, "IdentifyRecordsFromClusters");
+                                 ex.printStackTrace(Logger.getPrintStream());
+                             } catch (IOException ex){
+                                 Logger.log("Error wrtiing tweet " + tweetID, Logger.messageSeverity.Error, "IdentifyRecordsFromClusters");
+                                 ex.printStackTrace(Logger.getPrintStream());
+                             }
+                         }
+                         
                      }
                  }
              }

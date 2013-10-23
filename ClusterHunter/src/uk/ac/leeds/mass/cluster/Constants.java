@@ -2,7 +2,7 @@ package uk.ac.leeds.mass.cluster;
 // interface for assorted constants for GAM/K
 //
 // J R Davy
-//	Dec 1997
+//      Dec 1997
 
 public interface Constants
 {

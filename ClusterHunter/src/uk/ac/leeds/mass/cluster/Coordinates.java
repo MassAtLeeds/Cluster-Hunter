@@ -1,4 +1,3 @@
-
 package uk.ac.leeds.mass.cluster;
 
 /**
