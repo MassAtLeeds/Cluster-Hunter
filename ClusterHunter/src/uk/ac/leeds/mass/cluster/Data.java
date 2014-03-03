@@ -37,11 +37,22 @@ public class Data {
     private double totEvents = 0.0;
     private double totPopulation = 0.0;
     
-    public Data (String csvPath) throws IOException{
-        this(new File(csvPath));
+    private static Data d = null;
+    
+    private Data(){}
+    
+    public static Data getCurrent(){
+        if (d == null){
+            d = new Data();
+        }
+        return d;
     }
     
-    public Data(File csv) throws IOException{
+    public void setData (String csvPath) throws IOException{
+        setData(new File(csvPath));
+    }
+    
+    public void setData(File csv) throws IOException{
         this.csv = csv;
         //check and make sure the file exists and is not a directory
         if (csv.exists() && csv.isFile()){
@@ -97,7 +108,9 @@ public class Data {
         }
         fr.close();
         
-        standardisePopulationRates();
+        if (Parameters.getCurrent().getStandardise() == 1){
+            standardisePopulationRates();
+        }
 
     }
     
@@ -105,6 +118,19 @@ public class Data {
         double standardisationRate = totEvents / totPopulation;
         for (int i = 0; i < data[4].length; i++) {
             data[4][i] = data[4][i] * standardisationRate;
+        }
+    }
+    
+    public void setData(double[][] data){
+        this.data = data;
+        
+        if (Parameters.getCurrent().getStandardise() == 1){
+            //calculate the total events and population as we read in the file so we can standardise the population below
+            for (int i = 0; i < this.data[3].length; i++) {
+                totEvents += this.data[3][i];
+                totPopulation += this.data[4][i];
+            }
+            standardisePopulationRates();
         }
     }
     

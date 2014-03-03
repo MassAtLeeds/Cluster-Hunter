@@ -3,8 +3,11 @@
  */
 package uk.ac.leeds.mass.cluster;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import org.json.JSONException;
 
 /**
@@ -38,7 +41,7 @@ import org.json.JSONException;
  * 0.99 being 99% overlap, very detailed search and 0.01 being 1% overlap, the default is 0.5.</li>
  * <li>"OutputDirectory" as the key and any valid path to a directory where the results from the algorithm are to be stored.  
  * The default will be path to the input file</li>
- * <li>"SignificanceThreshold" as the key and a valid value between 0.99999 and 0.00001 <li>
+ * <li>"SignificanceThreshold" as the key and a valid value between 0.99999 and 0.00001 </li>
  * <li>"MinimumPopulation" as the key and any valid double value representing the minimum population required for significance testing (default 1.0)</li>
  * <li>"MinimumCases" as the key and any valid double value representing the minimum number of cases required for significance testing (default 1.0)</li>
  * <li>"StatisticType" as the key and either 1, 2 or 3
@@ -50,6 +53,10 @@ import org.json.JSONException;
  * </li>
  * <li>"CellNumer" as the key and any valid integer value representing the number of cells required on the longest
  * side of the output .asc file (default 100)</li>
+ * <li>"Standardise" as the key and either 1 to standardise the population by the overall average event rate or 0 to perform 
+ * no standardisation and use the population column as is (if standardisation has already taken place).</li>
+ * <li>"UI" as the key and either 1 to indicate that a user interface is attached or 0 if it is not.  If a UI is attached then it should 
+ * both serve and save the input and output data.  The default value for this parameter is 0.
  * </ul>
  *
  * @author Kirk Harland
@@ -80,6 +87,8 @@ public class Parameters {
     private int multipleTestReRuns = 0;
     private int statType = 1;
     private int cellNumber = 100;
+    private int standardise = 1;
+    private int ui = 0;
     
     public final static String FILE = "File";
     public final static String JSONFILE = "JSONFile";
@@ -96,6 +105,13 @@ public class Parameters {
     public final static String STATISTIC_TYPE = "StatisticType";
     public final static String OUTPUT_DIRECTORY = "OutputDirectory";
     public final static String CELL_NUMBER = "CellNumber";
+    public final static String STANDARDISE = "Standardise";
+    public final static String UI = "UI";
+    
+    public final static String FINISHED = "finished";
+    
+    private static ArrayList<ActionListener> listeners = new ArrayList<ActionListener>();
+    
     private Parameters(){}
     
     public static void main(String[] args){
@@ -111,23 +127,26 @@ public class Parameters {
         //TODO: any problems parsing exit with message logged for users
         pars.parseParameters(args);
         
-        //check and see if we have a JSON file and search term
         boolean useJSON = false;
+        boolean dataLoaded = false;
+        Data data = Data.getCurrent();
+
+
+        //check and see if we have a JSON file and search term
         if (pars.getJSONFile()!=null && pars.getSearchTerm()!=null){
             pars.setCSV( new FormatJSONFile().createCSV() );
             useJSON = true;
         }
-        
+
         //test data file to be used if that is ok run algorithm otherwise report issue to user
-        boolean dataLoaded = false;
-        Data data = null;
         try{
-            data = new Data(pars.getCSV());
+            data.setData(pars.getCSV());
             dataLoaded = true;
         }catch(Exception e){
             Logger.log("Data Loading", Logger.messageSeverity.Error, pars.getClass().getName() );
             e.printStackTrace(Logger.getPrintStream());
         }
+
         
         //if all of the data loaded ok run the GAM algorithm
         if ( dataLoaded ){
@@ -139,7 +158,7 @@ public class Parameters {
             //commented out at the moment because it is not working correctly 
             //coordinate locations are distorting
 //            ASC asc = new ASC(gam.getResults());
-            
+
             //identify the tweets contributing to the significant circles and write them to a JSON file
             if ( useJSON ){
                 try{
@@ -163,8 +182,10 @@ public class Parameters {
                     e.printStackTrace(Logger.getPrintStream());
                 }
             }
-        }
+
         
+        
+        }
         
     }
     
@@ -173,7 +194,7 @@ public class Parameters {
         return instance;
     }
     
-    private void parseParameters(String[] args){
+    public void parseParameters(String[] args){
         for (int i = 0; i < args.length; i++) {
             String[] valKey = args[i].split("\\|");
             
@@ -246,6 +267,12 @@ public class Parameters {
                 //set the asc cell size
                 else if ( valKey[0].equalsIgnoreCase(Parameters.CELL_NUMBER) ){ cellNumber = new Integer(valKey[1]).intValue(); }
                 
+                //set whether automatic standardisation should take place or not.
+                else if ( valKey[0].equalsIgnoreCase(Parameters.STANDARDISE) ){ this.standardise = new Integer(valKey[1]).intValue(); }
+                
+                //set whether a UI is attached or not.
+                else if ( valKey[0].equalsIgnoreCase(Parameters.UI) ){ this.ui = new Integer(valKey[1]).intValue(); }
+                
             }
             
         }
@@ -275,8 +302,12 @@ public class Parameters {
     public int getMultipleTestReRuns(){return multipleTestReRuns;}
     public int getStatisticType(){return statType;}
     public int getCellNumber(){return cellNumber;}
+    public int getStandardise(){return this.standardise;}
+    public int getUI() {return this.ui;}
+    
     
     //geographic calculation object
     public CoordinateFactory getCoordinateFactory(double x, double y){return new CoordinateFactory(x,y,coordinateType);}
+
     
 }

@@ -5,12 +5,13 @@
 package uk.ac.leeds.mass.cluster;
 
 import java.util.ArrayList;
+import uk.ac.leeds.mass.fmf.shared_objects.FrameworkProcess;
 
 /**
  *
  * @author geo8kh
  */
-public class Gamk {
+public class Gamk extends FrameworkProcess{
     
     Data data = null;
     
@@ -37,6 +38,7 @@ public class Gamk {
     // Constructors
     public Gamk(Data data) {
         this.data = data;
+        this.processName = "Running Cluster Hunter...";
     }
 
     
@@ -87,12 +89,31 @@ public class Gamk {
         
         //get the number of times the algorithm has to step through the different size circles
         int rTimes = (int) ((radMax-radMin)/radInc + 1.0);
+        initilise( 1 );
+        
+        //calculate the number of steps to report progress on
         double radius = radMin - radInc;
-
         for (int loop=0; loop < rTimes; loop++){
+            radius += radInc;
+            //get the increment required after each search
+            double step = radius * overlp;
+
+            //get the number of searches on the y axis
+            int yTimes = (int) (height/step + 1.0);
+            //get the number of searches on the x axis
+            int xTimes = (int) (width/step + 1.0);
+            
+            this.stages+=(yTimes*xTimes);
+        }
+
+        radius = radMin - radInc;
+        for (int loop=0; loop < rTimes; loop++){
+            if ( cancelled ){break;}
             radius += radInc;
             sequentialSearch(radius);
         }
+        
+        if(!cancelled){this.finished();}
 
     }
     
@@ -154,6 +175,7 @@ public class Gamk {
                     }
                 }
                 
+
                 //Point found so try testing
                 if(pointsInRadius > 0) {
 
@@ -179,6 +201,9 @@ public class Gamk {
                 bbXmin = geog.getOffsetXY(-(radius * 1.05 ), true);
                 bbXmax = geog.getOffsetXY((radius * 1.05 ), true);
                 
+                progress++;
+                if(cancelled){break;}
+                
             }//end of x loop
             
             //increment the y coordinate for the search
@@ -186,9 +211,16 @@ public class Gamk {
             bbYmin = geog.getOffsetXY(-(radius * 1.05 ), false);
             bbYmax = geog.getOffsetXY((radius * 1.05 ), false);
             
+            if(cancelled){break;}
+            
         }// end of y loop
 
 
+    }
+
+    @Override
+    public void runProcess() {
+        gamAlgorithm();
     }
 
    
